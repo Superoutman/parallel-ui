@@ -7,9 +7,13 @@
   ],
   "scripts": {
     "build": "npm run build -w @parallel-ui/book-object",
-    "build:book-object": "npm run build -w @parallel-ui/book-object"
+    "build:book-object": "npm run build -w @parallel-ui/book-object",
+    "changeset": "changeset",
+    "version-packages": "changeset version",
+    "release": "changeset publish"
   },
   "devDependencies": {
+    "@changesets/cli": "^2.29.5",
     "@types/react": "^19.1.10",
     "react": "^19.1.0",
     "expo-linear-gradient": "~15.0.8",

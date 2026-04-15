@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Release and publishing guide
+    url: https://github.com/Superoutman/parallel-ui/blob/main/PUBLISHING.md
+    about: Check publishing steps and required secrets before opening a release issue.

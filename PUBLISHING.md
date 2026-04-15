@@ -12,12 +12,15 @@
 ```bash
 npm ci
 npm run build:book-object
+npm run changeset
+npm run version-packages
 npm publish -w @parallel-ui/book-object --access public --dry-run
 ```
 
 ## Local release
 
 ```bash
+npm run version-packages
 npm publish -w @parallel-ui/book-object --access public
 ```
 
@@ -26,13 +29,14 @@ npm publish -w @parallel-ui/book-object --access public
 After `NPM_TOKEN` is configured:
 
 1. Open Actions in the `parallel-ui` repository.
-2. Run `Publish Book Object`.
-3. The workflow will install dependencies, build the package, and publish `@parallel-ui/book-object`.
+2. Preferred: let the `Release` workflow open or update the release PR from changesets.
+3. After the release PR is merged, the workflow publishes the package automatically.
+4. `Publish Book Object` remains available as a manual fallback.
 
 ## Versioning
 
-Before each release, bump the package version in:
+Before each release:
 
-- `packages/book-object/package.json`
-
-Then commit and push before publishing.
+1. Add a changeset with `npm run changeset`
+2. Commit and push it
+3. Let the `Release` workflow generate the version PR, or run `npm run version-packages` locally

@@ -43,4 +43,7 @@ The workspace is prepared so `packages/book-object` can be packed or published i
 
 - CI workflow: `.github/workflows/ci.yml`
 - Manual publish workflow: `.github/workflows/publish-book-object.yml`
+- Release workflow: `.github/workflows/release.yml`
 - Release instructions: [PUBLISHING.md](./PUBLISHING.md)
+- Contribution guide: [CONTRIBUTING.md](./CONTRIBUTING.md)
+- Versioning: Changesets in `.changeset/`
