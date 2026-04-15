@@ -6,6 +6,14 @@ Current first package:
 
 - `@parallel-ui/book-object`
 
+## Repository Layout
+
+```text
+parallel-ui/
+  packages/
+    book-object/
+```
+
 ## Quick Start
 
 ```bash
@@ -26,3 +34,7 @@ Native:
 ```tsx
 import { BookObject, StackedBookObject } from "@parallel-ui/book-object/native"
 ```
+
+## Publish Readiness
+
+The workspace is prepared so `packages/book-object` can be packed or published independently.

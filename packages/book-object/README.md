@@ -16,6 +16,12 @@ npm run build -w @parallel-ui/book-object
 
 Build output is written to `dist/`.
 
+## Package Check
+
+```bash
+npm pack
+```
+
 ## Current Status
 
 This package is currently developed inside the `citic-academy` monorepo and is still marked `private`.
