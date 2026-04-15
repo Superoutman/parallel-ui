@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react'
-import type { BookObjectSize, BookObjectTokens } from './core'
-import { getBookObjectMetrics } from './core'
+import type { BookObjectMotionConfig, BookObjectMotionInput, BookObjectSize, BookObjectTokens } from './core'
+import { getBookObjectMetrics, getBookObjectMotionState, shadowTokenToCss } from './core'
 
 export type WebBookObjectSource = {
   title: string
@@ -24,6 +24,8 @@ export type WebDetailBookObjectProps = {
   hideLeftBleed?: boolean
   size?: BookObjectSize
   tokens?: Partial<BookObjectTokens>
+  motionInput?: Partial<BookObjectMotionInput>
+  motionConfig?: Partial<BookObjectMotionConfig>
 }
 
 export type WebDiscoveryBookObjectProps = {
@@ -31,6 +33,8 @@ export type WebDiscoveryBookObjectProps = {
   data?: WebBookObjectData
   size?: BookObjectSize
   tokens?: Partial<BookObjectTokens>
+  motionInput?: Partial<BookObjectMotionInput>
+  motionConfig?: Partial<BookObjectMotionConfig>
 }
 
 export type WebStackedBookObjectProps = WebDiscoveryBookObjectProps
@@ -43,6 +47,8 @@ export type WebBookObjectProps = {
   hideLeftBleed?: boolean
   size?: BookObjectSize
   tokens?: Partial<BookObjectTokens>
+  motionInput?: Partial<BookObjectMotionInput>
+  motionConfig?: Partial<BookObjectMotionConfig>
 }
 
 function resolveWebBookObjectData({ book, data }: WebBookObjectInput) {
@@ -69,9 +75,12 @@ export function DetailBookObject({
   hideLeftBleed = false,
   size,
   tokens,
+  motionInput,
+  motionConfig,
 }: WebDetailBookObjectProps) {
   const resolvedBook = resolveWebBookObjectData({ book, data })
   const metrics = getBookObjectMetrics({ expanded, hideLeftBleed, size, tokens })
+  const motion = getBookObjectMotionState({ input: motionInput, config: motionConfig, scale: metrics.scale })
   const pageBorder = `${metrics.page.borderWidth}px solid ${metrics.tokens.pageBorderColor}`
   const pageBaseStyle = {
     position: 'absolute',
@@ -93,6 +102,9 @@ export function DetailBookObject({
         width: metrics.frame.width,
         height: metrics.frame.height,
         overflow: 'visible',
+        transformStyle: 'preserve-3d',
+        transform: `perspective(${metrics.frame.width * 6}px) rotateX(${motion.rotateX}deg) rotateY(${motion.rotateY}deg) translate3d(${motion.translateX}px, ${motion.translateY}px, 0)`,
+        transition: 'transform 120ms linear',
       }}
     >
       <div style={{ position: 'absolute', inset: 0 }}>
@@ -108,7 +120,7 @@ export function DetailBookObject({
             borderTopRightRadius: metrics.back.radiusRight,
             borderBottomRightRadius: metrics.back.radiusRight,
             transition: 'all 300ms ease-out',
-            boxShadow: metrics.back.shadowCss,
+            boxShadow: shadowTokenToCss(metrics.back.shadow, motion.shadowOffsetX * 0.5, motion.shadowOffsetY * 0.5),
             backgroundColor: resolveWebDepthColor(resolvedBook),
           }}
         />
@@ -161,7 +173,7 @@ export function DetailBookObject({
             borderTopRightRadius: metrics.front.radiusRight,
             borderBottomRightRadius: metrics.front.radiusRight,
             transition: 'all 300ms ease-out',
-            boxShadow: metrics.front.shadowCss,
+            boxShadow: shadowTokenToCss(metrics.front.shadow, motion.shadowOffsetX, motion.shadowOffsetY),
           }}
         >
           <CoverImage src={resolvedBook.cover} title={resolvedBook.title} />
@@ -177,6 +189,7 @@ export function DetailBookObject({
               background: metrics.effect.gradientCss,
               transition: 'all 300ms ease-out',
               opacity: metrics.effect.opacity,
+              transform: `translate(${motion.highlightShiftX}px, ${motion.highlightShiftY}px)`,
             }}
           />
           <div
@@ -192,6 +205,7 @@ export function DetailBookObject({
               mixBlendMode: 'screen',
               transition: 'opacity 300ms ease-out',
               opacity: metrics.light.opacity,
+              transform: `translate(${motion.highlightShiftX * 0.5}px, ${motion.highlightShiftY * 0.5}px)`,
             }}
           />
         </div>
@@ -200,7 +214,7 @@ export function DetailBookObject({
   )
 }
 
-export function DiscoveryBookObject({ book, data, size, tokens }: WebDiscoveryBookObjectProps) {
+export function DiscoveryBookObject({ book, data, size, tokens, motionInput, motionConfig }: WebDiscoveryBookObjectProps) {
   const resolvedBook = resolveWebBookObjectData({ book, data })
   const detailSize = size ?? 112
   const metrics = getBookObjectMetrics({ expanded: true, hideLeftBleed: true, size: detailSize, tokens })
@@ -220,7 +234,15 @@ export function DiscoveryBookObject({ book, data, size, tokens }: WebDiscoveryBo
     >
       <div style={wrapperStyle}>
         <div style={{ position: 'relative', width: metrics.frame.width, height: metrics.frame.height, overflow: 'visible' }}>
-          <DetailBookObject data={resolvedBook} expanded hideLeftBleed size={detailSize} tokens={tokens} />
+          <DetailBookObject
+            data={resolvedBook}
+            expanded
+            hideLeftBleed
+            size={detailSize}
+            tokens={tokens}
+            motionInput={motionInput}
+            motionConfig={motionConfig}
+          />
         </div>
       </div>
     </div>

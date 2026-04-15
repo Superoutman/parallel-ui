@@ -1,8 +1,14 @@
 import { useRef } from 'react'
 import { Animated, Image, type ImageSourcePropType, type ImageStyle, StyleSheet, type StyleProp, View } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
-import type { BookObjectSize, BookObjectTokens } from './core'
-import { getBookObjectMetrics, getPrimaryShadowLayer, gradientTokenToNativeColors, gradientTokenToNativeLocations } from './core'
+import type { BookObjectMotionConfig, BookObjectMotionInput, BookObjectSize, BookObjectTokens } from './core'
+import {
+  getBookObjectMetrics,
+  getBookObjectMotionState,
+  getPrimaryShadowLayer,
+  gradientTokenToNativeColors,
+  gradientTokenToNativeLocations,
+} from './core'
 
 export type NativeBookObjectSource = {
   title: string
@@ -25,6 +31,8 @@ export type NativeDetailBookObjectProps = {
   progress: Animated.Value
   size?: BookObjectSize
   tokens?: Partial<BookObjectTokens>
+  motionInput?: Partial<BookObjectMotionInput>
+  motionConfig?: Partial<BookObjectMotionConfig>
 }
 
 export type NativeDiscoveryBookObjectProps = {
@@ -32,6 +40,8 @@ export type NativeDiscoveryBookObjectProps = {
   data?: NativeBookObjectData
   size?: BookObjectSize
   tokens?: Partial<BookObjectTokens>
+  motionInput?: Partial<BookObjectMotionInput>
+  motionConfig?: Partial<BookObjectMotionConfig>
 }
 
 export type NativeStackedBookObjectProps = NativeDiscoveryBookObjectProps
@@ -44,6 +54,8 @@ export type NativeBookObjectProps = {
   size?: BookObjectSize
   tokens?: Partial<BookObjectTokens>
   hideLeftBleed?: boolean
+  motionInput?: Partial<BookObjectMotionInput>
+  motionConfig?: Partial<BookObjectMotionConfig>
 }
 
 function resolveNativeBookObjectData({ book, data }: NativeBookObjectInput) {
@@ -62,17 +74,21 @@ function resolveNativeDepthColor(data: NativeBookObjectData) {
 function Cover({
   title,
   cover,
+  width,
+  height,
   imageStyle,
 }: {
   title: string
   cover: ImageSourcePropType
+  width: number
+  height: number
   imageStyle?: StyleProp<ImageStyle>
 }) {
   return (
     <Image
       accessibilityLabel={`${title} 封面`}
       source={cover}
-      style={[styles.coverImage as ImageStyle, imageStyle]}
+      style={[styles.coverImage as ImageStyle, { width, height }, imageStyle]}
     />
   )
 }
@@ -84,12 +100,17 @@ export function DetailBookObject({
   size,
   tokens,
   hideLeftBleed = false,
+  motionInput,
+  motionConfig,
 }: NativeDetailBookObjectProps & { hideLeftBleed?: boolean }) {
   const resolvedBook = resolveNativeBookObjectData({ book, data })
   const collapsed = getBookObjectMetrics({ expanded: false, size, tokens })
   const expandedState = getBookObjectMetrics({ expanded: true, hideLeftBleed, size, tokens })
+  const motion = getBookObjectMotionState({ input: motionInput, config: motionConfig, scale: expandedState.scale })
   const frontShadowCollapsed = getPrimaryShadowLayer(collapsed.front.shadow)
   const frontShadowExpanded = getPrimaryShadowLayer(expandedState.front.shadow)
+  const frontShadowSecondaryCollapsed = collapsed.front.shadow[1] ?? null
+  const frontShadowSecondaryExpanded = expandedState.front.shadow[1] ?? null
   const backLeft = progress.interpolate({ inputRange: [0, 1], outputRange: [collapsed.back.left, expandedState.back.left] })
   const backWidth = progress.interpolate({ inputRange: [0, 1], outputRange: [collapsed.back.width, expandedState.back.width] })
   const insideLeft = progress.interpolate({ inputRange: [0, 1], outputRange: [collapsed.inside.left, expandedState.inside.left] })
@@ -127,9 +148,49 @@ export function DetailBookObject({
       (frontShadowExpanded?.y ?? 0) * expandedState.scale,
     ],
   })
+  const frontShadowSecondaryOpacity = progress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [frontShadowSecondaryCollapsed?.opacity ?? 0, frontShadowSecondaryExpanded?.opacity ?? 0],
+  })
+  const frontShadowSecondaryRadius = progress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [
+      (frontShadowSecondaryCollapsed?.blur ?? 0) * collapsed.scale,
+      (frontShadowSecondaryExpanded?.blur ?? 0) * expandedState.scale,
+    ],
+  })
+  const frontShadowSecondaryOffsetX = progress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [
+      (frontShadowSecondaryCollapsed?.x ?? 0) * collapsed.scale,
+      (frontShadowSecondaryExpanded?.x ?? 0) * expandedState.scale,
+    ],
+  })
+  const frontShadowSecondaryOffsetY = progress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [
+      (frontShadowSecondaryCollapsed?.y ?? 0) * collapsed.scale,
+      (frontShadowSecondaryExpanded?.y ?? 0) * expandedState.scale,
+    ],
+  })
 
   return (
-    <View style={[styles.detailBookObject, { width: expandedState.frame.width, height: expandedState.frame.height }]}>
+    <Animated.View
+      style={[
+        styles.detailBookObject,
+        {
+          width: expandedState.frame.width,
+          height: expandedState.frame.height,
+          transform: [
+            { perspective: expandedState.frame.width * 6 },
+            { rotateX: `${motion.rotateX}deg` },
+            { rotateY: `${motion.rotateY}deg` },
+            { translateX: motion.translateX },
+            { translateY: motion.translateY },
+          ],
+        },
+      ]}
+    >
       <Animated.View
         style={[
           styles.detailBookBackCover,
@@ -178,7 +239,7 @@ export function DetailBookObject({
           style={[
             styles.detailBookPage2,
             {
-              right: 2 * expandedState.scale,
+              right: 0,
               width: expandedState.page.width,
               borderWidth: expandedState.page.borderWidth,
               borderColor: expandedState.tokens.pageBorderColor,
@@ -195,7 +256,7 @@ export function DetailBookObject({
           style={[
             styles.detailBookPage3,
             {
-              right: 4 * expandedState.scale,
+              right: 0,
               width: expandedState.page.width,
               borderWidth: expandedState.page.borderWidth,
               borderColor: expandedState.tokens.pageBorderColor,
@@ -210,6 +271,27 @@ export function DetailBookObject({
         />
       </Animated.View>
       <Animated.View
+        pointerEvents="none"
+        style={[
+          styles.detailBookFrontShadowSecondary,
+          {
+            left: frontLeft,
+            width: expandedState.front.width,
+            height: expandedState.front.height,
+            borderTopLeftRadius: expandedState.front.radiusLeft,
+            borderBottomLeftRadius: expandedState.front.radiusLeft,
+            borderTopRightRadius: expandedState.front.radiusRight,
+            borderBottomRightRadius: expandedState.front.radiusRight,
+            shadowOpacity: frontShadowSecondaryOpacity,
+            shadowRadius: frontShadowSecondaryRadius,
+            shadowOffset: {
+              width: Animated.add(frontShadowSecondaryOffsetX, Animated.multiply(motion.shadowOffsetX, 0.7)),
+              height: Animated.add(frontShadowSecondaryOffsetY, Animated.multiply(motion.shadowOffsetY, 0.7)),
+            },
+          },
+        ]}
+      />
+      <Animated.View
         style={[
           styles.detailBookFront,
           {
@@ -222,11 +304,19 @@ export function DetailBookObject({
             borderBottomRightRadius: expandedState.front.radiusRight,
             shadowOpacity: frontShadowOpacity,
             shadowRadius: frontShadowRadius,
-            shadowOffset: { width: frontShadowOffsetX, height: frontShadowOffsetY },
+            shadowOffset: {
+              width: Animated.add(frontShadowOffsetX, motion.shadowOffsetX),
+              height: Animated.add(frontShadowOffsetY, motion.shadowOffsetY),
+            },
           },
         ]}
       >
-        <Cover cover={resolvedBook.cover} title={resolvedBook.title} />
+        <Cover
+          cover={resolvedBook.cover}
+          height={expandedState.front.height}
+          title={resolvedBook.title}
+          width={expandedState.front.width}
+        />
         <Animated.View
           style={[
             styles.detailBookEffect,
@@ -236,6 +326,7 @@ export function DetailBookObject({
               borderLeftWidth: expandedState.effect.borderWidth,
               borderLeftColor: expandedState.tokens.effectBorderColor,
               opacity: effectOpacity,
+              transform: [{ translateX: motion.highlightShiftX }, { translateY: motion.highlightShiftY }],
             },
           ]}
         >
@@ -257,19 +348,40 @@ export function DetailBookObject({
           />
         </Animated.View>
       </Animated.View>
-    </View>
+    </Animated.View>
   )
 }
 
-export function DiscoveryBookObject({ book, data, size, tokens }: NativeDiscoveryBookObjectProps) {
+export function DiscoveryBookObject({ book, data, size, tokens, motionInput, motionConfig }: NativeDiscoveryBookObjectProps) {
   const resolvedBook = resolveNativeBookObjectData({ book, data })
   const progressRef = useRef(new Animated.Value(1))
   const metrics = getBookObjectMetrics({ expanded: true, hideLeftBleed: true, size, tokens })
+  const originOffsetX = ((metrics.frame.width * metrics.stacked.scale) - metrics.frame.width) / 2
+  const originOffsetY = ((metrics.frame.height * metrics.stacked.scale) - metrics.frame.height) / 2
 
   return (
     <View style={[styles.discoveryBookObjectWrap, { width: metrics.stacked.width, height: metrics.stacked.height }]}>
-      <View style={[styles.discoveryBookObjectInner, { transform: [{ scale: metrics.stacked.scale }] }]}>
-        <DetailBookObject data={resolvedBook} progress={progressRef.current} size={size} tokens={tokens} hideLeftBleed />
+      <View
+        style={[
+          styles.discoveryBookObjectInner,
+          {
+            transform: [
+              { translateX: originOffsetX },
+              { translateY: originOffsetY },
+              { scale: metrics.stacked.scale },
+            ],
+          },
+        ]}
+      >
+        <DetailBookObject
+          data={resolvedBook}
+          progress={progressRef.current}
+          size={size}
+          tokens={tokens}
+          hideLeftBleed
+          motionInput={motionInput}
+          motionConfig={motionConfig}
+        />
       </View>
     </View>
   )
@@ -295,8 +407,6 @@ export function StackedBookObject(props: NativeStackedBookObjectProps) {
 
 const styles = StyleSheet.create({
   coverImage: {
-    width: '100%',
-    height: '100%',
     resizeMode: 'cover',
   },
   detailBookObject: {
@@ -304,6 +414,7 @@ const styles = StyleSheet.create({
   },
   detailBookBackCover: {
     position: 'absolute',
+    zIndex: 0,
     shadowColor: '#000000',
     shadowOffset: { width: 1, height: 1 },
     shadowOpacity: 0.16,
@@ -349,16 +460,26 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 0,
     overflow: 'hidden',
+    zIndex: 3,
     shadowColor: '#000000',
     elevation: 4,
+  },
+  detailBookFrontShadowSecondary: {
+    position: 'absolute',
+    top: 0,
+    zIndex: 2,
+    backgroundColor: 'rgba(255,255,255,0.01)',
+    shadowColor: '#000000',
   },
   detailBookEffect: {
     position: 'absolute',
     top: 0,
     height: '100%',
+    zIndex: 4,
   },
   detailBookLight: {
     ...StyleSheet.absoluteFillObject,
+    zIndex: 5,
   },
   discoveryBookObjectWrap: {
     overflow: 'visible',

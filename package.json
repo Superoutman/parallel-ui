@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "npm run dev -w @parallel-ui/playground-web",
     "dev:mobile": "npm run dev -w @parallel-ui/playground-web -- --host 0.0.0.0 --port 4173",
+    "dev:native": "npm run start -w @parallel-ui/playground-native",
     "build": "npm run build -w @parallel-ui/book-object",
     "build:book-object": "npm run build -w @parallel-ui/book-object",
     "build:playground": "npm run build -w @parallel-ui/playground-web",
@@ -22,10 +23,10 @@
     "@types/react": "^19.1.10",
     "@types/react-dom": "^19.1.9",
     "@vitejs/plugin-react": "^5.1.0",
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0",
-    "expo-linear-gradient": "~15.0.8",
-    "react-native": "^0.81.5",
+    "expo": "54.0.33",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "react-native": "0.81.5",
     "tailwindcss": "^4.2.2",
     "vite": "^8.0.8",
     "typescript": "~5.9.3"

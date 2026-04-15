@@ -1,6 +1,187 @@
 export type BookObjectVariant = 'detail' | 'stacked'
 export type BookObjectSizePreset = 'sm' | 'md' | 'lg'
 export type BookObjectSize = BookObjectSizePreset | number
+export type BookObjectMotionInput = {
+  x: number
+  y: number
+}
+export type BookObjectSensorSample = {
+  gamma: number
+  beta: number
+}
+export type BookObjectMotionConfig = {
+  maxRotateX: number
+  maxRotateY: number
+  maxTranslateX: number
+  maxTranslateY: number
+  maxShadowOffsetX: number
+  maxShadowOffsetY: number
+  maxHighlightShiftX: number
+  maxHighlightShiftY: number
+  inputGammaLimit: number
+  inputBetaLimit: number
+}
+export type BookObjectMotionState = {
+  rotateX: number
+  rotateY: number
+  translateX: number
+  translateY: number
+  shadowOffsetX: number
+  shadowOffsetY: number
+  highlightShiftX: number
+  highlightShiftY: number
+}
+
+export type BookObjectMetrics = {
+  tokens: BookObjectTokens
+  scale: number
+  frame: {
+    width: number
+    height: number
+  }
+  front: {
+    width: number
+    height: number
+    left: number
+    radiusLeft: number
+    radiusRight: number
+    shadow: BookObjectShadowToken
+    shadowCss: string
+  }
+  back: {
+    top: number
+    left: number
+    width: number
+    height: number
+    radiusLeft: number
+    radiusRight: number
+    shadow: BookObjectShadowToken
+    shadowCss: string
+  }
+  inside: {
+    top: number
+    left: number
+    width: number
+    height: number
+    opacity: number
+  }
+  page: {
+    width: number
+    radiusLeft: number
+    radiusRight: number
+    borderWidth: number
+    translations: [number, number, number]
+  }
+  effect: {
+    left: number
+    width: number
+    borderWidth: number
+    opacity: number
+    gradientCss: string
+  }
+  light: {
+    opacity: number
+    gradientCss: string
+  }
+  stacked: {
+    scale: number
+    width: number
+    height: number
+  }
+}
+
+export type BookObjectBackLayer = {
+  kind: 'back'
+  top: number
+  left: number
+  width: number
+  height: number
+  radiusLeft: number
+  radiusRight: number
+  fill: string
+  shadow: BookObjectShadowToken
+}
+
+export type BookObjectInsideLayer = {
+  kind: 'inside'
+  top: number
+  left: number
+  width: number
+  height: number
+  opacity: number
+}
+
+export type BookObjectPageLayer<Index extends 0 | 1 | 2 = 0 | 1 | 2> = {
+  kind: 'page'
+  index: Index
+  top: number
+  right: number
+  width: number
+  height: number
+  translateX: number
+  radiusLeft: number
+  radiusRight: number
+  borderWidth: number
+  borderColor: string
+  fill: string
+}
+
+export type BookObjectFrontLayer = {
+  kind: 'front'
+  top: number
+  left: number
+  width: number
+  height: number
+  radiusLeft: number
+  radiusRight: number
+  shadow: BookObjectShadowToken
+}
+
+export type BookObjectEffectLayer = {
+  kind: 'effect'
+  top: number
+  left: number
+  width: number
+  height: number
+  opacity: number
+  borderLeftWidth: number
+  borderLeftColor: string
+  gradient: BookObjectGradientToken
+}
+
+export type BookObjectLightLayer = {
+  kind: 'light'
+  top: number
+  left: number
+  width: number
+  height: number
+  opacity: number
+  gradient: BookObjectGradientToken
+}
+
+export type BookObjectRendererLayer =
+  | BookObjectBackLayer
+  | BookObjectInsideLayer
+  | BookObjectPageLayer
+  | BookObjectFrontLayer
+  | BookObjectEffectLayer
+  | BookObjectLightLayer
+
+export type BookObjectRendererModel = {
+  frame: BookObjectMetrics['frame']
+  stacked: BookObjectMetrics['stacked']
+  scale: number
+  layers: [
+    BookObjectBackLayer,
+    BookObjectInsideLayer,
+    BookObjectPageLayer<0>,
+    BookObjectPageLayer<1>,
+    BookObjectPageLayer<2>,
+    BookObjectFrontLayer,
+    BookObjectEffectLayer,
+    BookObjectLightLayer,
+  ]
+}
 
 export type BookObjectGradientStop = {
   color: string
@@ -62,7 +243,20 @@ export type BookObjectDesignTokenSource = {
 export const bookObjectSizePresets: Record<BookObjectSizePreset, number> = {
   sm: 96,
   md: 112,
-  lg: 144,
+  lg: 192,
+}
+
+export const defaultBookObjectMotionConfig: BookObjectMotionConfig = {
+  maxRotateX: 14,
+  maxRotateY: 16,
+  maxTranslateX: 11,
+  maxTranslateY: 14,
+  maxShadowOffsetX: 8,
+  maxShadowOffsetY: 10,
+  maxHighlightShiftX: 6,
+  maxHighlightShiftY: 8,
+  inputGammaLimit: 24,
+  inputBetaLimit: 28,
 }
 
 export const defaultBookObjectTokens: BookObjectTokens = {
@@ -170,6 +364,74 @@ export function gradientTokenToCss(token: BookObjectGradientToken): string {
   return `linear-gradient(${token.angle}deg, ${stops})`
 }
 
+export function clampBookObjectMotionInput(input?: Partial<BookObjectMotionInput>): BookObjectMotionInput {
+  return {
+    x: clampUnit(input?.x ?? 0),
+    y: clampUnit(input?.y ?? 0),
+  }
+}
+
+export function sensorSampleToBookObjectMotionInput(
+  sample: Partial<BookObjectSensorSample>,
+  config?: Partial<BookObjectMotionConfig>,
+): BookObjectMotionInput {
+  const resolved = resolveBookObjectMotionConfig(config)
+
+  return clampBookObjectMotionInput({
+    x: (sample.gamma ?? 0) / resolved.inputGammaLimit,
+    y: (sample.beta ?? 0) / resolved.inputBetaLimit,
+  })
+}
+
+export function resolveBookObjectMotionConfig(
+  config?: Partial<BookObjectMotionConfig>,
+): BookObjectMotionConfig {
+  return {
+    ...defaultBookObjectMotionConfig,
+    ...config,
+  }
+}
+
+export function getBookObjectMotionState(options?: {
+  input?: Partial<BookObjectMotionInput>
+  config?: Partial<BookObjectMotionConfig>
+  scale?: number
+}): BookObjectMotionState {
+  const input = clampBookObjectMotionInput(options?.input)
+  const config = resolveBookObjectMotionConfig(options?.config)
+  const scale = options?.scale ?? 1
+
+  return {
+    rotateX: -input.y * config.maxRotateX,
+    rotateY: input.x * config.maxRotateY,
+    translateX: input.x * config.maxTranslateX * scale,
+    translateY: input.y * config.maxTranslateY * scale,
+    shadowOffsetX: input.x * config.maxShadowOffsetX * scale,
+    shadowOffsetY: input.y * config.maxShadowOffsetY * scale,
+    highlightShiftX: input.x * config.maxHighlightShiftX * scale,
+    highlightShiftY: input.y * config.maxHighlightShiftY * scale,
+  }
+}
+
+export function interpolateBookObjectMotionState(
+  from: BookObjectMotionState,
+  to: BookObjectMotionState,
+  factor: number,
+): BookObjectMotionState {
+  const t = Math.max(0, Math.min(1, factor))
+
+  return {
+    rotateX: lerp(from.rotateX, to.rotateX, t),
+    rotateY: lerp(from.rotateY, to.rotateY, t),
+    translateX: lerp(from.translateX, to.translateX, t),
+    translateY: lerp(from.translateY, to.translateY, t),
+    shadowOffsetX: lerp(from.shadowOffsetX, to.shadowOffsetX, t),
+    shadowOffsetY: lerp(from.shadowOffsetY, to.shadowOffsetY, t),
+    highlightShiftX: lerp(from.highlightShiftX, to.highlightShiftX, t),
+    highlightShiftY: lerp(from.highlightShiftY, to.highlightShiftY, t),
+  }
+}
+
 export function gradientTokenToNativeColors(token: BookObjectGradientToken): [string, string, string] {
   return token.stops.map((stop) => withOpacity(stop.color, stop.opacity)) as [string, string, string]
 }
@@ -178,13 +440,13 @@ export function gradientTokenToNativeLocations(token: BookObjectGradientToken): 
   return token.stops.map((stop) => stop.position / 100) as [number, number, number]
 }
 
-export function shadowTokenToCss(token: BookObjectShadowToken): string {
+export function shadowTokenToCss(token: BookObjectShadowToken, offsetX = 0, offsetY = 0): string {
   if (token.length === 0) {
     return 'none'
   }
 
   return token
-    .map((layer) => `${layer.x}px ${layer.y}px ${layer.blur}px ${withOpacity(layer.color, layer.opacity)}`)
+    .map((layer) => `${layer.x + offsetX}px ${layer.y + offsetY}px ${layer.blur}px ${withOpacity(layer.color, layer.opacity)}`)
     .join(', ')
 }
 
@@ -214,6 +476,18 @@ function withOpacity(color: string, opacity = 1): string {
   }
 
   return normalized
+}
+
+function clampUnit(value: number): number {
+  if (Number.isNaN(value)) {
+    return 0
+  }
+
+  return Math.max(-1, Math.min(1, value))
+}
+
+function lerp(from: number, to: number, factor: number): number {
+  return from + (to - from) * factor
 }
 
 const BASE = {
@@ -309,7 +583,7 @@ export function getBookObjectMetrics(options?: {
   hideLeftBleed?: boolean
   size?: BookObjectSize
   tokens?: Partial<BookObjectTokens>
-}) {
+}): BookObjectMetrics {
   const expanded = options?.expanded ?? true
   const hideLeftBleed = options?.hideLeftBleed ?? false
   const size = resolveBookObjectSize(options?.size)
@@ -375,5 +649,113 @@ export function getBookObjectMetrics(options?: {
       width: px(BASE.frameWidth + 14),
       height: px(BASE.frameHeight * BASE.stackedScale),
     },
+  }
+}
+
+export function getBookObjectRendererModel(options?: {
+  expanded?: boolean
+  hideLeftBleed?: boolean
+  size?: BookObjectSize
+  tokens?: Partial<BookObjectTokens>
+}): BookObjectRendererModel {
+  const metrics = getBookObjectMetrics(options)
+
+  return {
+    frame: metrics.frame,
+    stacked: metrics.stacked,
+    scale: metrics.scale,
+    layers: [
+      {
+        kind: 'back',
+        top: metrics.back.top,
+        left: metrics.back.left,
+        width: metrics.back.width,
+        height: metrics.back.height,
+        radiusLeft: metrics.back.radiusLeft,
+        radiusRight: metrics.back.radiusRight,
+        fill: metrics.tokens.depthColor,
+        shadow: metrics.back.shadow,
+      },
+      {
+        kind: 'inside',
+        top: metrics.inside.top,
+        left: metrics.inside.left,
+        width: metrics.inside.width,
+        height: metrics.inside.height,
+        opacity: metrics.inside.opacity,
+      },
+      {
+        kind: 'page',
+        index: 0,
+        top: 0,
+        right: 0,
+        width: metrics.page.width,
+        height: metrics.inside.height,
+        translateX: metrics.page.translations[0],
+        radiusLeft: metrics.page.radiusLeft,
+        radiusRight: metrics.page.radiusRight,
+        borderWidth: metrics.page.borderWidth,
+        borderColor: metrics.tokens.pageBorderColor,
+        fill: metrics.tokens.pageColors[0],
+      },
+      {
+        kind: 'page',
+        index: 1,
+        top: 0,
+        right: 0,
+        width: metrics.page.width,
+        height: metrics.inside.height,
+        translateX: metrics.page.translations[1],
+        radiusLeft: metrics.page.radiusLeft,
+        radiusRight: metrics.page.radiusRight,
+        borderWidth: metrics.page.borderWidth,
+        borderColor: metrics.tokens.pageBorderColor,
+        fill: metrics.tokens.pageColors[1],
+      },
+      {
+        kind: 'page',
+        index: 2,
+        top: 0,
+        right: 0,
+        width: metrics.page.width,
+        height: metrics.inside.height,
+        translateX: metrics.page.translations[2],
+        radiusLeft: metrics.page.radiusLeft,
+        radiusRight: metrics.page.radiusRight,
+        borderWidth: metrics.page.borderWidth,
+        borderColor: metrics.tokens.pageBorderColor,
+        fill: metrics.tokens.pageColors[2],
+      },
+      {
+        kind: 'front',
+        top: 0,
+        left: metrics.front.left,
+        width: metrics.front.width,
+        height: metrics.front.height,
+        radiusLeft: metrics.front.radiusLeft,
+        radiusRight: metrics.front.radiusRight,
+        shadow: metrics.front.shadow,
+      },
+      {
+        kind: 'effect',
+        top: 0,
+        left: metrics.effect.left,
+        width: metrics.effect.width,
+        height: metrics.front.height,
+        opacity: metrics.effect.opacity,
+        borderLeftWidth: metrics.effect.borderWidth,
+        borderLeftColor: metrics.tokens.effectBorderColor,
+        gradient: metrics.tokens.effectGradient,
+      },
+      {
+        kind: 'light',
+        top: 0,
+        left: 0,
+        width: metrics.front.width,
+        height: metrics.front.height,
+        opacity: metrics.light.opacity,
+        gradient: metrics.tokens.lightGradient,
+      },
+    ],
   }
 }
