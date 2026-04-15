@@ -1,6 +1,36 @@
 export type BookObjectVariant = 'detail' | 'stacked'
 export type BookObjectSizePreset = 'sm' | 'md' | 'lg'
 export type BookObjectSize = BookObjectSizePreset | number
+export type BookObjectMotionInput = {
+  x: number
+  y: number
+}
+export type BookObjectSensorSample = {
+  gamma: number
+  beta: number
+}
+export type BookObjectMotionConfig = {
+  maxRotateX: number
+  maxRotateY: number
+  maxTranslateX: number
+  maxTranslateY: number
+  maxShadowOffsetX: number
+  maxShadowOffsetY: number
+  maxHighlightShiftX: number
+  maxHighlightShiftY: number
+  inputGammaLimit: number
+  inputBetaLimit: number
+}
+export type BookObjectMotionState = {
+  rotateX: number
+  rotateY: number
+  translateX: number
+  translateY: number
+  shadowOffsetX: number
+  shadowOffsetY: number
+  highlightShiftX: number
+  highlightShiftY: number
+}
 
 export type BookObjectGradientStop = {
   color: string
@@ -62,7 +92,20 @@ export type BookObjectDesignTokenSource = {
 export const bookObjectSizePresets: Record<BookObjectSizePreset, number> = {
   sm: 96,
   md: 112,
-  lg: 144,
+  lg: 192,
+}
+
+export const defaultBookObjectMotionConfig: BookObjectMotionConfig = {
+  maxRotateX: 14,
+  maxRotateY: 16,
+  maxTranslateX: 11,
+  maxTranslateY: 14,
+  maxShadowOffsetX: 8,
+  maxShadowOffsetY: 10,
+  maxHighlightShiftX: 6,
+  maxHighlightShiftY: 8,
+  inputGammaLimit: 24,
+  inputBetaLimit: 28,
 }
 
 export const defaultBookObjectTokens: BookObjectTokens = {
@@ -170,6 +213,74 @@ export function gradientTokenToCss(token: BookObjectGradientToken): string {
   return `linear-gradient(${token.angle}deg, ${stops})`
 }
 
+export function clampBookObjectMotionInput(input?: Partial<BookObjectMotionInput>): BookObjectMotionInput {
+  return {
+    x: clampUnit(input?.x ?? 0),
+    y: clampUnit(input?.y ?? 0),
+  }
+}
+
+export function sensorSampleToBookObjectMotionInput(
+  sample: Partial<BookObjectSensorSample>,
+  config?: Partial<BookObjectMotionConfig>,
+): BookObjectMotionInput {
+  const resolved = resolveBookObjectMotionConfig(config)
+
+  return clampBookObjectMotionInput({
+    x: (sample.gamma ?? 0) / resolved.inputGammaLimit,
+    y: (sample.beta ?? 0) / resolved.inputBetaLimit,
+  })
+}
+
+export function resolveBookObjectMotionConfig(
+  config?: Partial<BookObjectMotionConfig>,
+): BookObjectMotionConfig {
+  return {
+    ...defaultBookObjectMotionConfig,
+    ...config,
+  }
+}
+
+export function getBookObjectMotionState(options?: {
+  input?: Partial<BookObjectMotionInput>
+  config?: Partial<BookObjectMotionConfig>
+  scale?: number
+}): BookObjectMotionState {
+  const input = clampBookObjectMotionInput(options?.input)
+  const config = resolveBookObjectMotionConfig(options?.config)
+  const scale = options?.scale ?? 1
+
+  return {
+    rotateX: -input.y * config.maxRotateX,
+    rotateY: input.x * config.maxRotateY,
+    translateX: input.x * config.maxTranslateX * scale,
+    translateY: input.y * config.maxTranslateY * scale,
+    shadowOffsetX: input.x * config.maxShadowOffsetX * scale,
+    shadowOffsetY: input.y * config.maxShadowOffsetY * scale,
+    highlightShiftX: input.x * config.maxHighlightShiftX * scale,
+    highlightShiftY: input.y * config.maxHighlightShiftY * scale,
+  }
+}
+
+export function interpolateBookObjectMotionState(
+  from: BookObjectMotionState,
+  to: BookObjectMotionState,
+  factor: number,
+): BookObjectMotionState {
+  const t = Math.max(0, Math.min(1, factor))
+
+  return {
+    rotateX: lerp(from.rotateX, to.rotateX, t),
+    rotateY: lerp(from.rotateY, to.rotateY, t),
+    translateX: lerp(from.translateX, to.translateX, t),
+    translateY: lerp(from.translateY, to.translateY, t),
+    shadowOffsetX: lerp(from.shadowOffsetX, to.shadowOffsetX, t),
+    shadowOffsetY: lerp(from.shadowOffsetY, to.shadowOffsetY, t),
+    highlightShiftX: lerp(from.highlightShiftX, to.highlightShiftX, t),
+    highlightShiftY: lerp(from.highlightShiftY, to.highlightShiftY, t),
+  }
+}
+
 export function gradientTokenToNativeColors(token: BookObjectGradientToken): [string, string, string] {
   return token.stops.map((stop) => withOpacity(stop.color, stop.opacity)) as [string, string, string]
 }
@@ -178,13 +289,13 @@ export function gradientTokenToNativeLocations(token: BookObjectGradientToken): 
   return token.stops.map((stop) => stop.position / 100) as [number, number, number]
 }
 
-export function shadowTokenToCss(token: BookObjectShadowToken): string {
+export function shadowTokenToCss(token: BookObjectShadowToken, offsetX = 0, offsetY = 0): string {
   if (token.length === 0) {
     return 'none'
   }
 
   return token
-    .map((layer) => `${layer.x}px ${layer.y}px ${layer.blur}px ${withOpacity(layer.color, layer.opacity)}`)
+    .map((layer) => `${layer.x + offsetX}px ${layer.y + offsetY}px ${layer.blur}px ${withOpacity(layer.color, layer.opacity)}`)
     .join(', ')
 }
 
@@ -214,6 +325,18 @@ function withOpacity(color: string, opacity = 1): string {
   }
 
   return normalized
+}
+
+function clampUnit(value: number): number {
+  if (Number.isNaN(value)) {
+    return 0
+  }
+
+  return Math.max(-1, Math.min(1, value))
+}
+
+function lerp(from: number, to: number, factor: number): number {
+  return from + (to - from) * factor
 }
 
 const BASE = {

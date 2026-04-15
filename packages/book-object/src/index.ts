@@ -2,6 +2,10 @@ export type {
   BookObjectDesignTokenSource,
   BookObjectGradientStop,
   BookObjectGradientToken,
+  BookObjectMotionConfig,
+  BookObjectMotionInput,
+  BookObjectSensorSample,
+  BookObjectMotionState,
   BookObjectShadowLayerToken,
   BookObjectShadowToken,
   BookObjectSize,
@@ -11,15 +15,21 @@ export type {
 } from './core'
 export {
   bookObjectSizePresets,
+  clampBookObjectMotionInput,
+  defaultBookObjectMotionConfig,
   defaultBookObjectTokens,
   getPrimaryShadowLayer,
   getBookObjectMetrics,
+  getBookObjectMotionState,
   gradientTokenToNativeColors,
   gradientTokenToNativeLocations,
   gradientTokenToCss,
+  interpolateBookObjectMotionState,
   mapDesignTokensToBookObjectTokens,
   resolveBookObjectTokens,
+  resolveBookObjectMotionConfig,
   resolveBookObjectSize,
+  sensorSampleToBookObjectMotionInput,
   shadowTokenToCss,
 } from './core'
 export type {
@@ -37,4 +47,10 @@ export type {
   WebDetailBookObjectProps,
   WebDiscoveryBookObjectProps,
   WebStackedBookObjectProps,
+} from './web'
+export {
+  BookObject,
+  DetailBookObject,
+  DiscoveryBookObject,
+  StackedBookObject,
 } from './web'

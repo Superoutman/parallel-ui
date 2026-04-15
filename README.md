@@ -52,6 +52,14 @@ npm run dev:mobile
 
 Then open `http://<your-lan-ip>:4173` on the phone.
 
+For a reliable tilt preview on an actual phone, use the native Expo playground instead:
+
+```bash
+npm run dev:native
+```
+
+Then scan the Expo QR code with Expo Go on the phone.
+
 After changing the package source, verify the distributable build still works:
 
 ```bash

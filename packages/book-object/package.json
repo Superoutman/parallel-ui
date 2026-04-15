@@ -1,7 +1,7 @@
 {
   "name": "@parallel-ui/book-object",
   "private": false,
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Reusable editorial book-cover object for Web and React Native.",
   "license": "MIT",
   "type": "module",
@@ -52,7 +52,7 @@
     "prepack": "npm run build"
   },
   "peerDependencies": {
-    "expo-linear-gradient": "^15.0.0",
+    "expo-linear-gradient": "^14.1.0 || ^15.0.0",
     "react": "^19.0.0",
     "react-native": ">=0.81.0"
   },
