@@ -1,0 +1,19 @@
+{
+  "name": "parallel-ui",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build -w @parallel-ui/book-object",
+    "build:book-object": "npm run build -w @parallel-ui/book-object"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.10",
+    "react": "^19.1.0",
+    "expo-linear-gradient": "~15.0.8",
+    "react-native": "^0.81.5",
+    "typescript": "~5.9.3"
+  }
+}
