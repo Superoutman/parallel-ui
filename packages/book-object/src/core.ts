@@ -32,6 +32,157 @@ export type BookObjectMotionState = {
   highlightShiftY: number
 }
 
+export type BookObjectMetrics = {
+  tokens: BookObjectTokens
+  scale: number
+  frame: {
+    width: number
+    height: number
+  }
+  front: {
+    width: number
+    height: number
+    left: number
+    radiusLeft: number
+    radiusRight: number
+    shadow: BookObjectShadowToken
+    shadowCss: string
+  }
+  back: {
+    top: number
+    left: number
+    width: number
+    height: number
+    radiusLeft: number
+    radiusRight: number
+    shadow: BookObjectShadowToken
+    shadowCss: string
+  }
+  inside: {
+    top: number
+    left: number
+    width: number
+    height: number
+    opacity: number
+  }
+  page: {
+    width: number
+    radiusLeft: number
+    radiusRight: number
+    borderWidth: number
+    translations: [number, number, number]
+  }
+  effect: {
+    left: number
+    width: number
+    borderWidth: number
+    opacity: number
+    gradientCss: string
+  }
+  light: {
+    opacity: number
+    gradientCss: string
+  }
+  stacked: {
+    scale: number
+    width: number
+    height: number
+  }
+}
+
+export type BookObjectBackLayer = {
+  kind: 'back'
+  top: number
+  left: number
+  width: number
+  height: number
+  radiusLeft: number
+  radiusRight: number
+  fill: string
+  shadow: BookObjectShadowToken
+}
+
+export type BookObjectInsideLayer = {
+  kind: 'inside'
+  top: number
+  left: number
+  width: number
+  height: number
+  opacity: number
+}
+
+export type BookObjectPageLayer<Index extends 0 | 1 | 2 = 0 | 1 | 2> = {
+  kind: 'page'
+  index: Index
+  top: number
+  right: number
+  width: number
+  height: number
+  translateX: number
+  radiusLeft: number
+  radiusRight: number
+  borderWidth: number
+  borderColor: string
+  fill: string
+}
+
+export type BookObjectFrontLayer = {
+  kind: 'front'
+  top: number
+  left: number
+  width: number
+  height: number
+  radiusLeft: number
+  radiusRight: number
+  shadow: BookObjectShadowToken
+}
+
+export type BookObjectEffectLayer = {
+  kind: 'effect'
+  top: number
+  left: number
+  width: number
+  height: number
+  opacity: number
+  borderLeftWidth: number
+  borderLeftColor: string
+  gradient: BookObjectGradientToken
+}
+
+export type BookObjectLightLayer = {
+  kind: 'light'
+  top: number
+  left: number
+  width: number
+  height: number
+  opacity: number
+  gradient: BookObjectGradientToken
+}
+
+export type BookObjectRendererLayer =
+  | BookObjectBackLayer
+  | BookObjectInsideLayer
+  | BookObjectPageLayer
+  | BookObjectFrontLayer
+  | BookObjectEffectLayer
+  | BookObjectLightLayer
+
+export type BookObjectRendererModel = {
+  frame: BookObjectMetrics['frame']
+  stacked: BookObjectMetrics['stacked']
+  scale: number
+  layers: [
+    BookObjectBackLayer,
+    BookObjectInsideLayer,
+    BookObjectPageLayer<0>,
+    BookObjectPageLayer<1>,
+    BookObjectPageLayer<2>,
+    BookObjectFrontLayer,
+    BookObjectEffectLayer,
+    BookObjectLightLayer,
+  ]
+}
+
 export type BookObjectGradientStop = {
   color: string
   opacity: number
@@ -432,7 +583,7 @@ export function getBookObjectMetrics(options?: {
   hideLeftBleed?: boolean
   size?: BookObjectSize
   tokens?: Partial<BookObjectTokens>
-}) {
+}): BookObjectMetrics {
   const expanded = options?.expanded ?? true
   const hideLeftBleed = options?.hideLeftBleed ?? false
   const size = resolveBookObjectSize(options?.size)
@@ -498,5 +649,113 @@ export function getBookObjectMetrics(options?: {
       width: px(BASE.frameWidth + 14),
       height: px(BASE.frameHeight * BASE.stackedScale),
     },
+  }
+}
+
+export function getBookObjectRendererModel(options?: {
+  expanded?: boolean
+  hideLeftBleed?: boolean
+  size?: BookObjectSize
+  tokens?: Partial<BookObjectTokens>
+}): BookObjectRendererModel {
+  const metrics = getBookObjectMetrics(options)
+
+  return {
+    frame: metrics.frame,
+    stacked: metrics.stacked,
+    scale: metrics.scale,
+    layers: [
+      {
+        kind: 'back',
+        top: metrics.back.top,
+        left: metrics.back.left,
+        width: metrics.back.width,
+        height: metrics.back.height,
+        radiusLeft: metrics.back.radiusLeft,
+        radiusRight: metrics.back.radiusRight,
+        fill: metrics.tokens.depthColor,
+        shadow: metrics.back.shadow,
+      },
+      {
+        kind: 'inside',
+        top: metrics.inside.top,
+        left: metrics.inside.left,
+        width: metrics.inside.width,
+        height: metrics.inside.height,
+        opacity: metrics.inside.opacity,
+      },
+      {
+        kind: 'page',
+        index: 0,
+        top: 0,
+        right: 0,
+        width: metrics.page.width,
+        height: metrics.inside.height,
+        translateX: metrics.page.translations[0],
+        radiusLeft: metrics.page.radiusLeft,
+        radiusRight: metrics.page.radiusRight,
+        borderWidth: metrics.page.borderWidth,
+        borderColor: metrics.tokens.pageBorderColor,
+        fill: metrics.tokens.pageColors[0],
+      },
+      {
+        kind: 'page',
+        index: 1,
+        top: 0,
+        right: 0,
+        width: metrics.page.width,
+        height: metrics.inside.height,
+        translateX: metrics.page.translations[1],
+        radiusLeft: metrics.page.radiusLeft,
+        radiusRight: metrics.page.radiusRight,
+        borderWidth: metrics.page.borderWidth,
+        borderColor: metrics.tokens.pageBorderColor,
+        fill: metrics.tokens.pageColors[1],
+      },
+      {
+        kind: 'page',
+        index: 2,
+        top: 0,
+        right: 0,
+        width: metrics.page.width,
+        height: metrics.inside.height,
+        translateX: metrics.page.translations[2],
+        radiusLeft: metrics.page.radiusLeft,
+        radiusRight: metrics.page.radiusRight,
+        borderWidth: metrics.page.borderWidth,
+        borderColor: metrics.tokens.pageBorderColor,
+        fill: metrics.tokens.pageColors[2],
+      },
+      {
+        kind: 'front',
+        top: 0,
+        left: metrics.front.left,
+        width: metrics.front.width,
+        height: metrics.front.height,
+        radiusLeft: metrics.front.radiusLeft,
+        radiusRight: metrics.front.radiusRight,
+        shadow: metrics.front.shadow,
+      },
+      {
+        kind: 'effect',
+        top: 0,
+        left: metrics.effect.left,
+        width: metrics.effect.width,
+        height: metrics.front.height,
+        opacity: metrics.effect.opacity,
+        borderLeftWidth: metrics.effect.borderWidth,
+        borderLeftColor: metrics.tokens.effectBorderColor,
+        gradient: metrics.tokens.effectGradient,
+      },
+      {
+        kind: 'light',
+        top: 0,
+        left: 0,
+        width: metrics.front.width,
+        height: metrics.front.height,
+        opacity: metrics.light.opacity,
+        gradient: metrics.tokens.lightGradient,
+      },
+    ],
   }
 }

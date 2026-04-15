@@ -11,6 +11,7 @@ This package currently exposes two visual variants:
 This package now also exposes:
 
 - shared metrics via `getBookObjectMetrics`
+- renderer layers via `getBookObjectRendererModel`
 - public size presets via `bookObjectSizePresets`
 - token mapping helpers via `mapDesignTokensToBookObjectTokens`
 
@@ -162,6 +163,64 @@ const metrics = getBookObjectMetrics({
 })
 ```
 
+## Mini Program Integration
+
+For WeChat Mini Program or any future non-React renderer, do not reuse the `web` or `native` renderer directly.
+Reuse the shared `core` model and implement a platform-specific renderer on top of it.
+
+Recommended integration split:
+
+1. Use `getBookObjectMetrics` for shared geometry, sizing, and tokenized visual values.
+2. Use `getBookObjectMotionState` for normalized tilt-driven transforms.
+3. Use `sensorSampleToBookObjectMotionInput` to map raw device motion into normalized `x / y` input.
+4. Use `getBookObjectRendererModel` as the renderer contract for layer-by-layer drawing in Mini Program.
+
+Minimal Mini Program flow:
+
+```ts
+import {
+  getBookObjectRendererModel,
+  getBookObjectMotionState,
+  sensorSampleToBookObjectMotionInput,
+} from "@parallel-ui/book-object"
+
+const motionInput = sensorSampleToBookObjectMotionInput({
+  gamma,
+  beta,
+})
+
+const motion = getBookObjectMotionState({
+  input: motionInput,
+  scale: 1,
+})
+
+const model = getBookObjectRendererModel({
+  size: "lg",
+  expanded: true,
+  hideLeftBleed: false,
+})
+```
+
+The Mini Program renderer should draw layers in this order:
+
+1. `back`
+2. `inside`
+3. `page` 0
+4. `page` 1
+5. `page` 2
+6. `front`
+7. `effect`
+8. `light`
+
+This keeps the Mini Program implementation aligned with web and native semantics instead of manually re-creating geometry.
+
+Suggested future package structure:
+
+- `@parallel-ui/book-object/web`
+- `@parallel-ui/book-object/native`
+- `@parallel-ui/book-object/miniapp`
+- shared `core` as the single source of geometry, tokens, and motion logic
+
 ## Book Data Shape
 
 Minimal required fields:
@@ -194,7 +253,7 @@ This package does not yet own:
 - surrounding card layout
 - click handlers
 - book title/author metadata blocks
-- fully shared animation API
+- Mini Program renderer implementation
 
 ## Next Step
 

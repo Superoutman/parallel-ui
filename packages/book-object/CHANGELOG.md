@@ -1,5 +1,11 @@
 # @parallel-ui/book-object
 
+## 0.1.3
+
+### Patch Changes
+
+- Add Mini Program renderer contract exports and integration guidance on top of the shared book-object core.
+
 ## 0.1.2
 
 ### Patch Changes
