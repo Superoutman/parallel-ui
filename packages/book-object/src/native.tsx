@@ -1,6 +1,8 @@
 import { useRef } from 'react'
 import { Animated, Image, type ImageSourcePropType, type ImageStyle, StyleSheet, type StyleProp, View } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
+import type { BookObjectSize, BookObjectTokens } from './core'
+import { getBookObjectMetrics, getPrimaryShadowLayer, gradientTokenToNativeColors, gradientTokenToNativeLocations } from './core'
 
 export type NativeBookObjectSource = {
   title: string
@@ -21,11 +23,15 @@ export type NativeDetailBookObjectProps = {
   book?: NativeBookObjectSource
   data?: NativeBookObjectData
   progress: Animated.Value
+  size?: BookObjectSize
+  tokens?: Partial<BookObjectTokens>
 }
 
 export type NativeDiscoveryBookObjectProps = {
   book?: NativeBookObjectSource
   data?: NativeBookObjectData
+  size?: BookObjectSize
+  tokens?: Partial<BookObjectTokens>
 }
 
 export type NativeStackedBookObjectProps = NativeDiscoveryBookObjectProps
@@ -35,6 +41,9 @@ export type NativeBookObjectProps = {
   data?: NativeBookObjectData
   variant?: NativeBookObjectVariant
   progress?: Animated.Value
+  size?: BookObjectSize
+  tokens?: Partial<BookObjectTokens>
+  hideLeftBleed?: boolean
 }
 
 function resolveNativeBookObjectData({ book, data }: NativeBookObjectInput) {
@@ -68,59 +77,181 @@ function Cover({
   )
 }
 
-export function DetailBookObject({ book, data, progress }: NativeDetailBookObjectProps) {
+export function DetailBookObject({
+  book,
+  data,
+  progress,
+  size,
+  tokens,
+  hideLeftBleed = false,
+}: NativeDetailBookObjectProps & { hideLeftBleed?: boolean }) {
   const resolvedBook = resolveNativeBookObjectData({ book, data })
-  const backLeft = progress.interpolate({ inputRange: [0, 1], outputRange: [3, 2] })
-  const backWidth = progress.interpolate({ inputRange: [0, 1], outputRange: [84, 92] })
-  const insideLeft = progress.interpolate({ inputRange: [0, 1], outputRange: [8, 4] })
-  const insideWidth = progress.interpolate({ inputRange: [0, 1], outputRange: [84, 88] })
-  const insideOpacity = progress.interpolate({ inputRange: [0, 1], outputRange: [0, 1] })
-  const page1X = progress.interpolate({ inputRange: [0, 1], outputRange: [1, 0] })
-  const page2X = progress.interpolate({ inputRange: [0, 1], outputRange: [1, 0] })
-  const page3X = progress.interpolate({ inputRange: [0, 1], outputRange: [1, 0] })
-  const frontLeft = progress.interpolate({ inputRange: [0, 1], outputRange: [3, 0] })
-  const effectLeft = progress.interpolate({ inputRange: [0, 1], outputRange: [6, 4] })
-  const effectOpacity = progress.interpolate({ inputRange: [0, 1], outputRange: [0.72, 1] })
-  const lightOpacity = progress.interpolate({ inputRange: [0, 1], outputRange: [0.14, 0.22] })
-  const frontShadowOpacity = progress.interpolate({ inputRange: [0, 1], outputRange: [0.12, 0.15] })
-  const frontShadowRadius = progress.interpolate({ inputRange: [0, 1], outputRange: [14, 20] })
+  const collapsed = getBookObjectMetrics({ expanded: false, size, tokens })
+  const expandedState = getBookObjectMetrics({ expanded: true, hideLeftBleed, size, tokens })
+  const frontShadowCollapsed = getPrimaryShadowLayer(collapsed.front.shadow)
+  const frontShadowExpanded = getPrimaryShadowLayer(expandedState.front.shadow)
+  const backLeft = progress.interpolate({ inputRange: [0, 1], outputRange: [collapsed.back.left, expandedState.back.left] })
+  const backWidth = progress.interpolate({ inputRange: [0, 1], outputRange: [collapsed.back.width, expandedState.back.width] })
+  const insideLeft = progress.interpolate({ inputRange: [0, 1], outputRange: [collapsed.inside.left, expandedState.inside.left] })
+  const insideWidth = progress.interpolate({ inputRange: [0, 1], outputRange: [collapsed.inside.width, expandedState.inside.width] })
+  const insideOpacity = progress.interpolate({ inputRange: [0, 1], outputRange: [collapsed.inside.opacity, expandedState.inside.opacity] })
+  const page1X = progress.interpolate({ inputRange: [0, 1], outputRange: [collapsed.page.translations[0], expandedState.page.translations[0]] })
+  const page2X = progress.interpolate({ inputRange: [0, 1], outputRange: [collapsed.page.translations[1], expandedState.page.translations[1]] })
+  const page3X = progress.interpolate({ inputRange: [0, 1], outputRange: [collapsed.page.translations[2], expandedState.page.translations[2]] })
+  const frontLeft = progress.interpolate({ inputRange: [0, 1], outputRange: [collapsed.front.left, expandedState.front.left] })
+  const effectLeft = progress.interpolate({ inputRange: [0, 1], outputRange: [6 * collapsed.scale, expandedState.effect.left] })
+  const effectOpacity = progress.interpolate({ inputRange: [0, 1], outputRange: [collapsed.effect.opacity, expandedState.effect.opacity] })
+  const lightOpacity = progress.interpolate({ inputRange: [0, 1], outputRange: [collapsed.light.opacity, expandedState.light.opacity] })
+  const frontShadowOpacity = progress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [frontShadowCollapsed?.opacity ?? 0, frontShadowExpanded?.opacity ?? 0],
+  })
+  const frontShadowRadius = progress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [
+      (frontShadowCollapsed?.blur ?? 0) * collapsed.scale,
+      (frontShadowExpanded?.blur ?? 0) * expandedState.scale,
+    ],
+  })
+  const frontShadowOffsetX = progress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [
+      (frontShadowCollapsed?.x ?? 0) * collapsed.scale,
+      (frontShadowExpanded?.x ?? 0) * expandedState.scale,
+    ],
+  })
+  const frontShadowOffsetY = progress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [
+      (frontShadowCollapsed?.y ?? 0) * collapsed.scale,
+      (frontShadowExpanded?.y ?? 0) * expandedState.scale,
+    ],
+  })
 
   return (
-    <View style={styles.detailBookObject}>
+    <View style={[styles.detailBookObject, { width: expandedState.frame.width, height: expandedState.frame.height }]}>
       <Animated.View
         style={[
           styles.detailBookBackCover,
           {
+            top: expandedState.back.top,
             left: backLeft,
             width: backWidth,
+            height: expandedState.back.height,
+            borderTopLeftRadius: expandedState.back.radiusLeft,
+            borderBottomLeftRadius: expandedState.back.radiusLeft,
+            borderTopRightRadius: expandedState.back.radiusRight,
+            borderBottomRightRadius: expandedState.back.radiusRight,
             backgroundColor: resolveNativeDepthColor(resolvedBook),
           },
         ]}
       />
-      <Animated.View style={[styles.detailBookInside, { left: insideLeft, width: insideWidth, opacity: insideOpacity }]}>
-        <Animated.View style={[styles.detailBookPage1, { transform: [{ translateX: page1X }] }]} />
-        <Animated.View style={[styles.detailBookPage2, { transform: [{ translateX: page2X }] }]} />
-        <Animated.View style={[styles.detailBookPage3, { transform: [{ translateX: page3X }] }]} />
+      <Animated.View
+        style={[
+          styles.detailBookInside,
+          {
+            top: expandedState.inside.top,
+            left: insideLeft,
+            width: insideWidth,
+            height: expandedState.inside.height,
+            opacity: insideOpacity,
+          },
+        ]}
+      >
+        <Animated.View
+          style={[
+            styles.detailBookPage1,
+            {
+              width: expandedState.page.width,
+              borderWidth: expandedState.page.borderWidth,
+              borderColor: expandedState.tokens.pageBorderColor,
+              borderTopLeftRadius: expandedState.page.radiusLeft,
+              borderBottomLeftRadius: expandedState.page.radiusLeft,
+              borderTopRightRadius: expandedState.page.radiusRight,
+              borderBottomRightRadius: expandedState.page.radiusRight,
+              backgroundColor: expandedState.tokens.pageColors[0],
+              transform: [{ translateX: page1X }],
+            },
+          ]}
+        />
+        <Animated.View
+          style={[
+            styles.detailBookPage2,
+            {
+              right: 2 * expandedState.scale,
+              width: expandedState.page.width,
+              borderWidth: expandedState.page.borderWidth,
+              borderColor: expandedState.tokens.pageBorderColor,
+              borderTopLeftRadius: expandedState.page.radiusLeft,
+              borderBottomLeftRadius: expandedState.page.radiusLeft,
+              borderTopRightRadius: expandedState.page.radiusRight,
+              borderBottomRightRadius: expandedState.page.radiusRight,
+              backgroundColor: expandedState.tokens.pageColors[1],
+              transform: [{ translateX: page2X }],
+            },
+          ]}
+        />
+        <Animated.View
+          style={[
+            styles.detailBookPage3,
+            {
+              right: 4 * expandedState.scale,
+              width: expandedState.page.width,
+              borderWidth: expandedState.page.borderWidth,
+              borderColor: expandedState.tokens.pageBorderColor,
+              borderTopLeftRadius: expandedState.page.radiusLeft,
+              borderBottomLeftRadius: expandedState.page.radiusLeft,
+              borderTopRightRadius: expandedState.page.radiusRight,
+              borderBottomRightRadius: expandedState.page.radiusRight,
+              backgroundColor: expandedState.tokens.pageColors[2],
+              transform: [{ translateX: page3X }],
+            },
+          ]}
+        />
       </Animated.View>
       <Animated.View
         style={[
           styles.detailBookFront,
-          { left: frontLeft, shadowOpacity: frontShadowOpacity, shadowRadius: frontShadowRadius },
+          {
+            left: frontLeft,
+            width: expandedState.front.width,
+            height: expandedState.front.height,
+            borderTopLeftRadius: expandedState.front.radiusLeft,
+            borderBottomLeftRadius: expandedState.front.radiusLeft,
+            borderTopRightRadius: expandedState.front.radiusRight,
+            borderBottomRightRadius: expandedState.front.radiusRight,
+            shadowOpacity: frontShadowOpacity,
+            shadowRadius: frontShadowRadius,
+            shadowOffset: { width: frontShadowOffsetX, height: frontShadowOffsetY },
+          },
         ]}
       >
         <Cover cover={resolvedBook.cover} title={resolvedBook.title} />
-        <Animated.View style={[styles.detailBookEffect, { left: effectLeft, opacity: effectOpacity }]}>
+        <Animated.View
+          style={[
+            styles.detailBookEffect,
+            {
+              left: effectLeft,
+              width: expandedState.effect.width,
+              borderLeftWidth: expandedState.effect.borderWidth,
+              borderLeftColor: expandedState.tokens.effectBorderColor,
+              opacity: effectOpacity,
+            },
+          ]}
+        >
           <LinearGradient
-            colors={['rgba(255,255,255,0.14)', 'rgba(255,255,255,0.08)', 'rgba(255,255,255,0)']}
+            colors={gradientTokenToNativeColors(expandedState.tokens.effectGradient)}
             end={{ x: 1, y: 0 }}
+            locations={gradientTokenToNativeLocations(expandedState.tokens.effectGradient)}
             start={{ x: 0, y: 0 }}
             style={StyleSheet.absoluteFillObject}
           />
         </Animated.View>
         <Animated.View style={[styles.detailBookLight, { opacity: lightOpacity }]}>
           <LinearGradient
-            colors={['rgba(255,255,255,0)', 'rgba(255,255,255,0.18)', 'rgba(255,255,255,0.46)']}
+            colors={gradientTokenToNativeColors(expandedState.tokens.lightGradient)}
             end={{ x: 1, y: 0 }}
+            locations={gradientTokenToNativeLocations(expandedState.tokens.lightGradient)}
             start={{ x: 0, y: 0 }}
             style={StyleSheet.absoluteFillObject}
           />
@@ -130,14 +261,15 @@ export function DetailBookObject({ book, data, progress }: NativeDetailBookObjec
   )
 }
 
-export function DiscoveryBookObject({ book, data }: NativeDiscoveryBookObjectProps) {
+export function DiscoveryBookObject({ book, data, size, tokens }: NativeDiscoveryBookObjectProps) {
   const resolvedBook = resolveNativeBookObjectData({ book, data })
   const progressRef = useRef(new Animated.Value(1))
+  const metrics = getBookObjectMetrics({ expanded: true, hideLeftBleed: true, size, tokens })
 
   return (
-    <View style={styles.discoveryBookObjectWrap}>
-      <View style={styles.discoveryBookObjectInner}>
-        <DetailBookObject data={resolvedBook} progress={progressRef.current} />
+    <View style={[styles.discoveryBookObjectWrap, { width: metrics.stacked.width, height: metrics.stacked.height }]}>
+      <View style={[styles.discoveryBookObjectInner, { transform: [{ scale: metrics.stacked.scale }] }]}>
+        <DetailBookObject data={resolvedBook} progress={progressRef.current} size={size} tokens={tokens} hideLeftBleed />
       </View>
     </View>
   )
@@ -168,19 +300,10 @@ const styles = StyleSheet.create({
     resizeMode: 'cover',
   },
   detailBookObject: {
-    width: 105,
-    height: 112,
     overflow: 'visible',
   },
   detailBookBackCover: {
     position: 'absolute',
-    top: 2.25,
-    width: 84,
-    height: 107,
-    borderTopLeftRadius: 2,
-    borderBottomLeftRadius: 2,
-    borderTopRightRadius: 6,
-    borderBottomRightRadius: 6,
     shadowColor: '#000000',
     shadowOffset: { width: 1, height: 1 },
     shadowOpacity: 0.16,
@@ -189,25 +312,13 @@ const styles = StyleSheet.create({
   },
   detailBookInside: {
     position: 'absolute',
-    top: 4.36,
-    left: 4,
-    width: 88,
-    height: '94%',
     zIndex: 1,
   },
   detailBookPage1: {
     position: 'absolute',
     top: 0,
     right: 0,
-    width: '98%',
     height: '100%',
-    borderWidth: 0.75,
-    borderColor: 'rgba(0,0,0,0.2)',
-    borderTopLeftRadius: 1,
-    borderBottomLeftRadius: 1,
-    borderTopRightRadius: 6,
-    borderBottomRightRadius: 6,
-    backgroundColor: '#FFFFFF',
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.15,
@@ -217,16 +328,7 @@ const styles = StyleSheet.create({
   detailBookPage2: {
     position: 'absolute',
     top: 0,
-    right: 2,
-    width: '98%',
     height: '100%',
-    borderWidth: 0.75,
-    borderColor: 'rgba(0,0,0,0.2)',
-    borderTopLeftRadius: 1,
-    borderBottomLeftRadius: 1,
-    borderTopRightRadius: 6,
-    borderBottomRightRadius: 6,
-    backgroundColor: '#F1F1F1',
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.15,
@@ -236,16 +338,7 @@ const styles = StyleSheet.create({
   detailBookPage3: {
     position: 'absolute',
     top: 0,
-    right: 4,
-    width: '98%',
     height: '100%',
-    borderWidth: 0.75,
-    borderColor: 'rgba(0,0,0,0.2)',
-    borderTopLeftRadius: 1,
-    borderBottomLeftRadius: 1,
-    borderTopRightRadius: 6,
-    borderBottomRightRadius: 6,
-    backgroundColor: '#E7E7E7',
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.15,
@@ -255,35 +348,21 @@ const styles = StyleSheet.create({
   detailBookFront: {
     position: 'absolute',
     top: 0,
-    width: 84,
-    height: 112,
     overflow: 'hidden',
-    borderTopLeftRadius: 2,
-    borderBottomLeftRadius: 2,
-    borderTopRightRadius: 6,
-    borderBottomRightRadius: 6,
     shadowColor: '#000000',
-    shadowOffset: { width: 8, height: 0 },
     elevation: 4,
   },
   detailBookEffect: {
     position: 'absolute',
     top: 0,
-    width: 24,
     height: '100%',
-    borderLeftWidth: 2,
-    borderLeftColor: 'rgba(0,0,0,0.08)',
   },
   detailBookLight: {
     ...StyleSheet.absoluteFillObject,
   },
   discoveryBookObjectWrap: {
-    width: 119,
-    height: 151,
     overflow: 'visible',
   },
   discoveryBookObjectInner: {
-    transform: [{ scale: 1.35 }],
-    transformOrigin: 'top left',
   },
 })

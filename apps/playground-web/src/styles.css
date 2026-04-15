@@ -1,0 +1,22 @@
+@import "tailwindcss";
+@source "../../../packages/book-object/src";
+
+:root {
+  color-scheme: light;
+  font-family: Arial, sans-serif;
+  background: #ffffff;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+}

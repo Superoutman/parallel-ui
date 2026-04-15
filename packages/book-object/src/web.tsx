@@ -1,4 +1,6 @@
 import type { CSSProperties } from 'react'
+import type { BookObjectSize, BookObjectTokens } from './core'
+import { getBookObjectMetrics } from './core'
 
 export type WebBookObjectSource = {
   title: string
@@ -20,11 +22,15 @@ export type WebDetailBookObjectProps = {
   data?: WebBookObjectData
   expanded: boolean
   hideLeftBleed?: boolean
+  size?: BookObjectSize
+  tokens?: Partial<BookObjectTokens>
 }
 
 export type WebDiscoveryBookObjectProps = {
   book?: WebBookObjectSource
   data?: WebBookObjectData
+  size?: BookObjectSize
+  tokens?: Partial<BookObjectTokens>
 }
 
 export type WebStackedBookObjectProps = WebDiscoveryBookObjectProps
@@ -35,6 +41,8 @@ export type WebBookObjectProps = {
   variant?: WebBookObjectVariant
   expanded?: boolean
   hideLeftBleed?: boolean
+  size?: BookObjectSize
+  tokens?: Partial<BookObjectTokens>
 }
 
 function resolveWebBookObjectData({ book, data }: WebBookObjectInput) {
@@ -51,7 +59,7 @@ function resolveWebDepthColor(data: WebBookObjectData) {
 }
 
 function CoverImage({ title, src }: { title: string; src: string }) {
-  return <img alt={title} className="h-full w-full object-cover" src={src} />
+  return <img alt={title} src={src} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
 }
 
 export function DetailBookObject({
@@ -59,71 +67,132 @@ export function DetailBookObject({
   data,
   expanded,
   hideLeftBleed = false,
+  size,
+  tokens,
 }: WebDetailBookObjectProps) {
   const resolvedBook = resolveWebBookObjectData({ book, data })
-  const backLeft = expanded ? (hideLeftBleed ? '0px' : '-3px') : '3px'
-  const insideLeft = expanded ? (hideLeftBleed ? '2px' : '-1px') : '3px'
-  const backWidth = expanded ? (hideLeftBleed ? '89.15%' : '92%') : '84px'
-  const insideWidth = expanded ? (hideLeftBleed ? '85.95%' : '88%') : '84%'
-  const frontShadow = hideLeftBleed
-    ? 'none'
-    : expanded
-      ? 'rgba(0,0,0,0.12) 8px -4px 16px, rgba(0,0,0,0.12) 16px 0px 24px'
-      : 'rgba(0,0,0,0.1) 5px -2px 12px, rgba(0,0,0,0.1) 10px 0px 16px'
-  const backShadow = hideLeftBleed
-    ? '2px 2px 5px rgba(0,0,0,0.25)'
-    : expanded
-      ? '1px 1px 4px rgba(0,0,0,0.2)'
-      : '1px 1px 3px rgba(0,0,0,0.16)'
-
-  const pageBorder = '0.75px solid rgba(0,0,0,0.20)'
-  const pageBaseClassName =
-    'absolute right-0 top-0 h-full w-[98%] rounded-l-[1px] rounded-r-[6px] transition-transform duration-300 ease-out'
+  const metrics = getBookObjectMetrics({ expanded, hideLeftBleed, size, tokens })
+  const pageBorder = `${metrics.page.borderWidth}px solid ${metrics.tokens.pageBorderColor}`
+  const pageBaseStyle = {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    height: '100%',
+    width: metrics.page.width,
+    borderTopLeftRadius: metrics.page.radiusLeft,
+    borderBottomLeftRadius: metrics.page.radiusLeft,
+    borderTopRightRadius: metrics.page.radiusRight,
+    borderBottomRightRadius: metrics.page.radiusRight,
+    transition: 'transform 300ms ease-out',
+  } satisfies CSSProperties
 
   return (
-    <div className="relative h-full w-[105px] overflow-visible">
-      <div className="absolute inset-0">
+    <div
+      style={{
+        position: 'relative',
+        width: metrics.frame.width,
+        height: metrics.frame.height,
+        overflow: 'visible',
+      }}
+    >
+      <div style={{ position: 'absolute', inset: 0 }}>
         <div
-          className="absolute top-[2%] h-[calc(96%-1px)] rounded-l-[2px] rounded-r-[6px] transition-all duration-300 ease-out"
           style={{
-            left: backLeft,
-            width: backWidth,
-            boxShadow: backShadow,
+            position: 'absolute',
+            top: metrics.back.top,
+            left: metrics.back.left,
+            width: metrics.back.width,
+            height: metrics.back.height,
+            borderTopLeftRadius: metrics.back.radiusLeft,
+            borderBottomLeftRadius: metrics.back.radiusLeft,
+            borderTopRightRadius: metrics.back.radiusRight,
+            borderBottomRightRadius: metrics.back.radiusRight,
+            transition: 'all 300ms ease-out',
+            boxShadow: metrics.back.shadowCss,
             backgroundColor: resolveWebDepthColor(resolvedBook),
           }}
         />
         <div
-          className="absolute top-[calc(3%+1px)] h-[94%] transition-all duration-300 ease-out"
-          style={{ left: insideLeft, width: insideWidth, opacity: expanded ? 1 : 0 }}
+          style={{
+            position: 'absolute',
+            top: metrics.inside.top,
+            left: metrics.inside.left,
+            width: metrics.inside.width,
+            height: metrics.inside.height,
+            opacity: metrics.inside.opacity,
+            transition: 'all 300ms ease-out',
+          }}
         >
           <div
-            className={`${pageBaseClassName} bg-[#FFFFFF]`}
-            style={{ transform: expanded ? 'translateX(0)' : 'translateX(-1px)', border: pageBorder }}
+            style={{
+              ...pageBaseStyle,
+              transform: `translateX(${metrics.page.translations[0]}px)`,
+              border: pageBorder,
+              backgroundColor: metrics.tokens.pageColors[0],
+            }}
           />
           <div
-            className={`${pageBaseClassName} bg-[#F1F1F1]`}
-            style={{ transform: expanded ? 'translateX(-2px)' : 'translateX(0)', border: pageBorder }}
+            style={{
+              ...pageBaseStyle,
+              transform: `translateX(${metrics.page.translations[1]}px)`,
+              border: pageBorder,
+              backgroundColor: metrics.tokens.pageColors[1],
+            }}
           />
           <div
-            className={`${pageBaseClassName} bg-[#E7E7E7]`}
-            style={{ transform: expanded ? 'translateX(-4px)' : 'translateX(-1px)', border: pageBorder }}
+            style={{
+              ...pageBaseStyle,
+              transform: `translateX(${metrics.page.translations[2]}px)`,
+              border: pageBorder,
+              backgroundColor: metrics.tokens.pageColors[2],
+            }}
           />
         </div>
         <div
-          className="absolute top-0 h-full w-[84px] overflow-hidden rounded-l-[2px] rounded-r-[6px] transition-all duration-300 ease-out"
           style={{
-            left: expanded ? '0' : '3px',
-            boxShadow: frontShadow,
+            position: 'absolute',
+            top: 0,
+            left: metrics.front.left,
+            width: metrics.front.width,
+            height: metrics.front.height,
+            overflow: 'hidden',
+            borderTopLeftRadius: metrics.front.radiusLeft,
+            borderBottomLeftRadius: metrics.front.radiusLeft,
+            borderTopRightRadius: metrics.front.radiusRight,
+            borderBottomRightRadius: metrics.front.radiusRight,
+            transition: 'all 300ms ease-out',
+            boxShadow: metrics.front.shadowCss,
           }}
         >
           <CoverImage src={resolvedBook.cover} title={resolvedBook.title} />
           <div
-            className="pointer-events-none absolute top-0 h-full w-[24px] border-l-2 border-l-[rgba(0,0,0,0.08)] bg-[linear-gradient(90deg,rgba(255,255,255,0.14)_0%,rgba(255,255,255,0.08)_38%,rgba(255,255,255,0)_100%)] transition-all duration-300 ease-out"
-            style={{ left: expanded ? '4px' : '6px', opacity: expanded ? 1 : 0.72 }}
+            style={{
+              pointerEvents: 'none',
+              position: 'absolute',
+              top: 0,
+              left: metrics.effect.left,
+              width: metrics.effect.width,
+              height: '100%',
+              borderLeft: `${metrics.effect.borderWidth}px solid ${metrics.tokens.effectBorderColor}`,
+              background: metrics.effect.gradientCss,
+              transition: 'all 300ms ease-out',
+              opacity: metrics.effect.opacity,
+            }}
           />
           <div
-            className="pointer-events-none absolute inset-0 rounded-l-[2px] rounded-r-[6px] bg-[linear-gradient(90deg,rgba(255,255,255,0)_0%,rgba(255,255,255,0.18)_62%,rgba(255,255,255,0.46)_100%)] mix-blend-screen transition-opacity duration-300 ease-out"
-            style={{ opacity: expanded ? 0.22 : 0.14 }}
+            style={{
+              pointerEvents: 'none',
+              position: 'absolute',
+              inset: 0,
+              borderTopLeftRadius: metrics.front.radiusLeft,
+              borderBottomLeftRadius: metrics.front.radiusLeft,
+              borderTopRightRadius: metrics.front.radiusRight,
+              borderBottomRightRadius: metrics.front.radiusRight,
+              background: metrics.light.gradientCss,
+              mixBlendMode: 'screen',
+              transition: 'opacity 300ms ease-out',
+              opacity: metrics.light.opacity,
+            }}
           />
         </div>
       </div>
@@ -131,18 +200,27 @@ export function DetailBookObject({
   )
 }
 
-export function DiscoveryBookObject({ book }: WebDiscoveryBookObjectProps) {
-  const resolvedBook = resolveWebBookObjectData({ book, data: undefined })
+export function DiscoveryBookObject({ book, data, size, tokens }: WebDiscoveryBookObjectProps) {
+  const resolvedBook = resolveWebBookObjectData({ book, data })
+  const detailSize = size ?? 112
+  const metrics = getBookObjectMetrics({ expanded: true, hideLeftBleed: true, size: detailSize, tokens })
   const wrapperStyle = {
-    transform: 'scale(1.35)',
+    transform: `scale(${metrics.stacked.scale})`,
     transformOrigin: 'top left',
   } satisfies CSSProperties
 
   return (
-    <div className="relative h-[151px] w-[119px] overflow-visible">
+    <div
+      style={{
+        position: 'relative',
+        width: metrics.stacked.width,
+        height: metrics.stacked.height,
+        overflow: 'visible',
+      }}
+    >
       <div style={wrapperStyle}>
-        <div className="relative h-[112px] w-[105px] overflow-visible">
-          <DetailBookObject data={resolvedBook} expanded hideLeftBleed />
+        <div style={{ position: 'relative', width: metrics.frame.width, height: metrics.frame.height, overflow: 'visible' }}>
+          <DetailBookObject data={resolvedBook} expanded hideLeftBleed size={detailSize} tokens={tokens} />
         </div>
       </div>
     </div>
