@@ -38,3 +38,9 @@ import { BookObject, StackedBookObject } from "@parallel-ui/book-object/native"
 ## Publish Readiness
 
 The workspace is prepared so `packages/book-object` can be packed or published independently.
+
+## Automation
+
+- CI workflow: `.github/workflows/ci.yml`
+- Manual publish workflow: `.github/workflows/publish-book-object.yml`
+- Release instructions: [PUBLISHING.md](./PUBLISHING.md)
